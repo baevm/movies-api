@@ -34,17 +34,13 @@ func main() {
 		logger: logger,
 	}
 
-	mux := http.NewServeMux()
-
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.port),
-		Handler:      mux,
+		Handler:      app.routes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
-
-	mux.HandleFunc("/v1/healthcheck", app.healthcheckHandler)
 
 	err := server.ListenAndServe()
 	logger.Fatal(err)
