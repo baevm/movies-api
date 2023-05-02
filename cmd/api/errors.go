@@ -2,45 +2,51 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"movies-api/internal/utils"
 	"net/http"
 )
 
-func (app *app) logError(r *http.Request, err error) {
-	app.logger.Print(err)
+type Error struct {
+	logger *log.Logger
 }
 
-func (app *app) errorResponse(w http.ResponseWriter, r *http.Request, status int, msg any) {
-	env := envelope{"error": msg}
+func (e *Error) logError(r *http.Request, err error) {
+	e.logger.Print(err)
+}
 
-	err := writeJSON(w, status, env, nil)
+func (e *Error) errorResponse(w http.ResponseWriter, r *http.Request, status int, msg any) {
+	env := utils.Envelope{"error": msg}
+
+	err := utils.WriteJSON(w, status, env, nil)
 
 	if err != nil {
-		app.logError(r, err)
+		e.logError(r, err)
 		w.WriteHeader(500)
 	}
 }
 
-func (app *app) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.logError(r, err)
+func (e *Error) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
+	e.logError(r, err)
 
 	msg := "The server encountered a problem and could not process your request"
-	app.errorResponse(w, r, http.StatusInternalServerError, msg)
+	e.errorResponse(w, r, http.StatusInternalServerError, msg)
 }
 
-func (app *app) notFoundResponse(w http.ResponseWriter, r *http.Request) {
+func (e *Error) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	msg := "The requested resource could not be found"
-	app.errorResponse(w, r, http.StatusNotFound, msg)
+	e.errorResponse(w, r, http.StatusNotFound, msg)
 }
 
-func (app *app) notAllowedResponse(w http.ResponseWriter, r *http.Request) {
+func (e *Error) notAllowedResponse(w http.ResponseWriter, r *http.Request) {
 	msg := fmt.Sprintf("The %s method is not supported for this resource", r.Method)
-	app.errorResponse(w, r, http.StatusMethodNotAllowed, msg)
+	e.errorResponse(w, r, http.StatusMethodNotAllowed, msg)
 }
 
-func (app *app) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
+func (e *Error) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
+	e.errorResponse(w, r, http.StatusBadRequest, err.Error())
 }
 
-func (app *app) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
-	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
+func (e *Error) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
+	e.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }

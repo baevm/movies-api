@@ -1,8 +1,11 @@
 package models
 
 import (
-	"movies-api/internal/validator"
+	"database/sql"
+	"errors"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type Movie struct {
@@ -15,19 +18,105 @@ type Movie struct {
 	Version   int32     `json:"version"`
 }
 
-func ValidateMovie(v *validator.Validator, movie *Movie) {
-	v.Check(movie.Title != "", "title", "Title must be provided")
-	v.Check(len(movie.Title) <= 500, "title", "Title length must be less than 500 characters")
+type MovieService struct {
+	db *sql.DB
+}
 
-	v.Check(movie.Year != 0, "year", "Year must be provided")
-	v.Check(movie.Year >= 1800, "year", "Year must be greater than 1800")
-	v.Check(movie.Year <= int32(time.Now().Year()), "year", "Year cant be greater than current year")
+func NewMovieService(db *sql.DB) *MovieService {
+	return &MovieService{db: db}
+}
 
-	v.Check(movie.Runtime != 0, "runtime", "Runtime must be provided")
-	v.Check(movie.Runtime > 0, "runtime", "Runtime cant be less than 0")
+func (m MovieService) Create(movie *Movie) error {
+	query := `
+	INSERT INTO movies (title, year, runtime, genres) 
+	VALUES ($1, $2, $3, $4)
+	RETURNING id, created_at, version`
 
-	v.Check(movie.Genres != nil, "genres", "Genres must be provided")
-	v.Check(len(movie.Genres) >= 1, "genres", "Genres must contain at least 1 genre")
-	v.Check(len(movie.Genres) <= 5, "genres", "Genres must not contain more than 5 genres")
-	v.Check(validator.Unique(movie.Genres), "genres", "Genres must not contain duplicate values")
+	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+
+	return m.db.QueryRow(query, args...).Scan(&movie.Id, &movie.CreatedAt, &movie.Version)
+}
+
+func (m MovieService) Get(id int64) (*Movie, error) {
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	var movie Movie
+
+	query := `
+	SELECT id, created_at, title, year, runtime, genres, version
+	FROM movies
+	WHERE id = $1`
+
+	err := m.db.
+		QueryRow(query, id).
+		Scan(
+			&movie.Id,
+			&movie.CreatedAt,
+			&movie.Title,
+			&movie.Year,
+			&movie.Runtime,
+			pq.Array(&movie.Genres),
+			&movie.Version,
+		)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		} else {
+			return nil, err
+		}
+	}
+
+	return &movie, nil
+}
+
+func (m MovieService) Update(movie *Movie) error {
+	query := `
+	UPDATE movies
+	SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
+	WHERE id = $5
+	RETURNING version`
+
+	args := []any{
+		movie.Title,
+		movie.Year,
+		movie.Runtime,
+		pq.Array(&movie.Genres),
+		movie.Id,
+	}
+
+	return m.db.
+		QueryRow(query, args...).
+		Scan(&movie.Version)
+}
+
+func (m MovieService) Delete(id int64) error {
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	query := ` 
+	DELETE FROM movies
+	WHERE id = $1
+	`
+
+	res, err := m.db.Exec(query, id)
+
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
 }

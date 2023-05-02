@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"encoding/json"
@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type envelope map[string]any
+type Envelope map[string]any
 
-func (app *app) readIdParam(r *http.Request) (int64, error) {
+func ReadIdParam(r *http.Request) (int64, error) {
 	strId := chi.URLParam(r, "id")
 
 	id, err := strconv.ParseInt(strId, 10, 64)
@@ -26,7 +26,7 @@ func (app *app) readIdParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
-func writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+func WriteJSON(w http.ResponseWriter, status int, data Envelope, headers http.Header) error {
 	res, err := json.Marshal(data)
 
 	if err != nil {
@@ -43,7 +43,7 @@ func writeJSON(w http.ResponseWriter, status int, data envelope, headers http.He
 	return nil
 }
 
-func readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+func ReadJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	maxBytes := 1048756 // 1 MB
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
 

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"movies-api/internal/models"
 	"net/http"
 	"os"
 	"time"
@@ -27,8 +28,10 @@ type config struct {
 }
 
 type app struct {
-	config config
-	logger *log.Logger
+	config       config
+	logger       *log.Logger
+	err          Error
+	movieService *models.MovieService
 }
 
 func main() {
@@ -54,8 +57,10 @@ func main() {
 	logger.Printf("Connected to DB")
 
 	app := &app{
-		config: cfg,
-		logger: logger,
+		config:       cfg,
+		logger:       logger,
+		err:          Error{logger: logger},
+		movieService: models.NewMovieService(db),
 	}
 
 	server := &http.Server{

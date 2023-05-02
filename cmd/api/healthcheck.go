@@ -1,11 +1,12 @@
 package main
 
 import (
+	"movies-api/internal/utils"
 	"net/http"
 )
 
 func (app *app) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
-	data := envelope{
+	data := utils.Envelope{
 		"status": "avaliable",
 		"system_info": map[string]string{
 			"env":     app.config.env,
@@ -13,9 +14,9 @@ func (app *app) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	err := writeJSON(w, http.StatusOK, data, nil)
+	err := utils.WriteJSON(w, http.StatusOK, data, nil)
 
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.err.serverErrorResponse(w, r, err)
 	}
 }
