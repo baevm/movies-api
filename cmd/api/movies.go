@@ -106,9 +106,9 @@ func (app *app) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Title   string   `json:"title"`
-		Year    int32    `json:"year"`
-		Runtime int32    `json:"runtime"`
+		Title   *string  `json:"title"`
+		Year    *int32   `json:"year"`
+		Runtime *int32   `json:"runtime"`
 		Genres  []string `json:"genres"`
 	}
 
@@ -120,11 +120,22 @@ func (app *app) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// update movie with input
-	movie.Title = input.Title
-	movie.Year = input.Year
-	movie.Runtime = input.Runtime
-	movie.Genres = input.Genres
+	// if value is nil, then that means that no value was provided
+	// and we do not need to change it
+	if input.Title != nil {
+		movie.Title = *input.Title
+	}
+
+	if input.Year != nil {
+		movie.Year = *input.Year
+	}
+	if input.Runtime != nil {
+		movie.Runtime = *input.Runtime
+	}
+
+	if input.Genres != nil {
+		movie.Genres = input.Genres
+	}
 
 	v := validator.New()
 
@@ -137,7 +148,12 @@ func (app *app) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
 	err = app.movieService.Update(movie)
 
 	if err != nil {
-		app.err.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, models.ErrEditConflict):
+			app.err.editConflictResponse(w, r)
+		default:
+			app.err.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
@@ -145,7 +161,6 @@ func (app *app) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		app.err.serverErrorResponse(w, r, err)
-		return
 	}
 }
 
