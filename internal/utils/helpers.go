@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"movies-api/internal/validator"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -96,4 +98,41 @@ func ReadJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	}
 
 	return nil
+}
+
+func ReadQuery(queries url.Values, key string, defaultValue string) string {
+	s := queries.Get(key)
+
+	if s == "" {
+		return defaultValue
+	}
+
+	return s
+}
+
+func ReadCSV(queries url.Values, key string, defaultValue []string) []string {
+	csv := queries.Get(key)
+
+	if csv == "" {
+		return defaultValue
+	}
+
+	return strings.Split(csv, ",")
+}
+
+func ReadInt(queries url.Values, key string, defaultValue int, v *validator.Validator) int {
+	s := queries.Get(key)
+
+	if s == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(s)
+
+	if err != nil {
+		v.AddError(key, "must be an integer value")
+		return defaultValue
+	}
+
+	return i
 }

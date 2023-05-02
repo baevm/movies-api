@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"movies-api/internal/models"
-	"movies-api/internal/models/dto"
+	"movies-api/internal/models/movies"
 	"movies-api/internal/utils"
 	"movies-api/internal/validator"
 	"net/http"
@@ -52,7 +52,7 @@ func (app *app) createMovieHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movie := &models.Movie{
+	movie := &movies.Movie{
 		Title:   input.Title,
 		Year:    input.Year,
 		Runtime: input.Runtime,
@@ -61,7 +61,7 @@ func (app *app) createMovieHandler(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.New()
 
-	if dto.ValidateMovie(v, movie); !v.Valid() {
+	if movies.ValidateMovie(v, movie); !v.Valid() {
 		app.err.failedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -140,7 +140,7 @@ func (app *app) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
 	v := validator.New()
 
 	// validate
-	if dto.ValidateMovie(v, movie); !v.Valid() {
+	if movies.ValidateMovie(v, movie); !v.Valid() {
 		app.err.failedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -190,5 +190,37 @@ func (app *app) deleteMovieHandler(w http.ResponseWriter, r *http.Request) {
 		app.err.serverErrorResponse(w, r, err)
 		return
 	}
+}
 
+func (app *app) listMoviesHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		movies.MovieFilters
+	}
+
+	v := validator.New()
+
+	input.Title = utils.ReadQuery(r.URL.Query(), "title", "")
+	input.Genres = utils.ReadCSV(r.URL.Query(), "genres", []string{})
+	input.Page = utils.ReadInt(r.URL.Query(), "page", 1, v)
+	input.PageSize = utils.ReadInt(r.URL.Query(), "page_size", 10, v)
+	input.Sort = utils.ReadQuery(r.URL.Query(), "sort", "id")
+	input.SortSafelist = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+
+	if movies.ValidateFilters(v, input.MovieFilters); !v.Valid() {
+		app.err.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	movies, meta, err := app.movieService.GetAll(&input.MovieFilters)
+
+	if err != nil {
+		app.err.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = utils.WriteJSON(w, http.StatusOK, utils.Envelope{"movies": movies, "metadata": meta}, nil)
+
+	if err != nil {
+		app.err.serverErrorResponse(w, r, err)
+	}
 }

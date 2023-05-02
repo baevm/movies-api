@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"movies-api/internal/models"
+	"movies-api/internal/models/movies"
 	"net/http"
 	"os"
 	"time"
@@ -31,7 +31,7 @@ type app struct {
 	config       config
 	logger       *log.Logger
 	err          Error
-	movieService *models.MovieService
+	movieService *movies.MovieService
 }
 
 func main() {
@@ -60,7 +60,7 @@ func main() {
 		config:       cfg,
 		logger:       logger,
 		err:          Error{logger: logger},
-		movieService: models.NewMovieService(db),
+		movieService: movies.NewMovieService(db),
 	}
 
 	server := &http.Server{

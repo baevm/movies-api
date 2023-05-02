@@ -1,9 +1,11 @@
-package models
+package movies
 
 import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"movies-api/internal/models"
 	"time"
 
 	"github.com/lib/pq"
@@ -45,7 +47,7 @@ func (m MovieService) Create(movie *Movie) error {
 
 func (m MovieService) Get(id int64) (*Movie, error) {
 	if id < 1 {
-		return nil, ErrRecordNotFound
+		return nil, models.ErrRecordNotFound
 	}
 
 	var movie Movie
@@ -75,7 +77,7 @@ func (m MovieService) Get(id int64) (*Movie, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrRecordNotFound
+			return nil, models.ErrRecordNotFound
 		} else {
 			return nil, err
 		}
@@ -110,7 +112,7 @@ func (m MovieService) Update(movie *Movie) error {
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return ErrEditConflict
+			return models.ErrEditConflict
 		default:
 			return err
 		}
@@ -121,7 +123,7 @@ func (m MovieService) Update(movie *Movie) error {
 
 func (m MovieService) Delete(id int64) error {
 	if id < 1 {
-		return ErrRecordNotFound
+		return models.ErrRecordNotFound
 	}
 
 	query := ` 
@@ -145,8 +147,70 @@ func (m MovieService) Delete(id int64) error {
 	}
 
 	if rowsAffected == 0 {
-		return ErrRecordNotFound
+		return models.ErrRecordNotFound
 	}
 
 	return nil
+}
+
+func (m MovieService) GetAll(filters *MovieFilters) ([]*Movie, Metadata, error) {
+	// @> contains
+	// to_tsvector breaks title in lexemes (e.g "Pulp fiction" => "pulp", "fiction")
+	// plainto_tsquery turns value into query term (e.g "Pulp fiction" => "pulp" & "fiction")
+	// @@ matches operator. check if query term matches the lexemes
+	query := fmt.Sprintf(`
+	SELECT COUNT(*) OVER(), id, title, year, runtime, genres, created_at, version
+	FROM movies
+	WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
+	AND (genres @> $2 OR $2 = '{}')
+	ORDER BY %s %s, id ASC
+	LIMIT $3 OFFSET $4`,
+		filters.sortColumn(),
+		filters.sortDirection(),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []any{filters.Title, pq.Array(filters.Genres), filters.limit(), filters.offset()}
+
+	rows, err := m.db.QueryContext(ctx, query, args...)
+
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+
+	defer rows.Close()
+
+	totalRecords := 0
+	movies := []*Movie{}
+
+	for rows.Next() {
+		mov := &Movie{}
+
+		err := rows.Scan(
+			&totalRecords,
+			&mov.Id,
+			&mov.Title,
+			&mov.Year,
+			&mov.Runtime,
+			pq.Array(&mov.Genres),
+			&mov.CreatedAt,
+			&mov.Version,
+		)
+
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+
+		movies = append(movies, mov)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calcMetadata(totalRecords, filters.Page, filters.PageSize)
+
+	return movies, metadata, nil
 }
