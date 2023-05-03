@@ -2,17 +2,20 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"movies-api/internal/jsonlog"
 	"movies-api/internal/utils"
 	"net/http"
 )
 
 type Error struct {
-	logger *log.Logger
+	logger *jsonlog.Logger
 }
 
 func (e *Error) logError(r *http.Request, err error) {
-	e.logger.Print(err)
+	e.logger.PrintError(err, map[string]string{
+		"req_method": r.Method,
+		"req_url":    r.URL.String(),
+	})
 }
 
 func (e *Error) errorResponse(w http.ResponseWriter, r *http.Request, status int, msg any) {

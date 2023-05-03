@@ -11,10 +11,11 @@ func (app *app) routes() http.Handler {
 
 	r.NotFound(app.err.notFoundResponse)
 	r.MethodNotAllowed(app.err.notAllowedResponse)
+	r.Use(app.recoverPanic)
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/healthcheck", app.healthcheckHandler)
-		
+
 		r.Mount("/movies", app.moviesRouter())
 	})
 

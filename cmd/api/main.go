@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"movies-api/internal/jsonlog"
 	"movies-api/internal/models/movies"
 	"net/http"
 	"os"
@@ -29,7 +30,7 @@ type config struct {
 
 type app struct {
 	config       config
-	logger       *log.Logger
+	logger       *jsonlog.Logger
 	err          Error
 	movieService *movies.MovieService
 }
@@ -45,21 +46,21 @@ func main() {
 
 	flag.Parse()
 
-	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 	db, err := openDB(cfg)
 
 	if err != nil {
-		logger.Fatal(err)
+		logger.PrintFatal(err, nil)
 	}
 
 	defer db.Close()
 
-	logger.Printf("Connected to DB")
+	logger.PrintInfo("Connected to DB", nil)
 
 	app := &app{
 		config:       cfg,
-		logger:       logger,
 		err:          Error{logger: logger},
+		logger:       jsonlog.New(os.Stdout, jsonlog.LevelInfo),
 		movieService: movies.NewMovieService(db),
 	}
 
@@ -69,11 +70,15 @@ func main() {
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
+		ErrorLog:     log.New(logger, "", 0),
 	}
 
-	app.logger.Printf("starting server on %s", server.Addr)
+	app.logger.PrintInfo("starting server on %s", map[string]string{
+		"addr": server.Addr,
+		"env":  cfg.env,
+	})
 	err = server.ListenAndServe()
-	logger.Fatal(err)
+	logger.PrintFatal(err, nil)
 }
 
 func openDB(cfg config) (*sql.DB, error) {
