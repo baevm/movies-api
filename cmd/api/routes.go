@@ -9,9 +9,11 @@ import (
 func (app *app) routes() http.Handler {
 	r := chi.NewRouter()
 
+	r.Use(app.rateLimit)
+	r.Use(app.recoverPanic)
+
 	r.NotFound(app.err.notFoundResponse)
 	r.MethodNotAllowed(app.err.notAllowedResponse)
-	r.Use(app.recoverPanic)
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/healthcheck", app.healthcheckHandler)

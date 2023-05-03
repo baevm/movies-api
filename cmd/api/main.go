@@ -26,12 +26,17 @@ type config struct {
 		maxIdleConns int
 		maxIdleTime  string
 	}
+	limiter struct {
+		rps     float64
+		burst   int
+		enabled bool
+	}
 }
 
 type app struct {
 	config       config
 	logger       *jsonlog.Logger
-	err          Error
+	err          CustomError
 	movieService *movies.MovieService
 }
 
@@ -43,6 +48,9 @@ func main() {
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL maximum open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL maximum idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL maximum connections idle time")
+	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter requests per second")
+	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter burst requests")
+	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enabled rate limiter")
 
 	flag.Parse()
 
@@ -59,7 +67,7 @@ func main() {
 
 	app := &app{
 		config:       cfg,
-		err:          Error{logger: logger},
+		err:          CustomError{logger: logger},
 		logger:       jsonlog.New(os.Stdout, jsonlog.LevelInfo),
 		movieService: movies.NewMovieService(db),
 	}
