@@ -6,6 +6,7 @@ import (
 	"flag"
 	"movies-api/internal/jsonlog"
 	"movies-api/internal/models/movies"
+	"movies-api/internal/models/users"
 	"os"
 	"time"
 
@@ -35,6 +36,7 @@ type app struct {
 	logger       *jsonlog.Logger
 	err          CustomError
 	movieService *movies.MovieService
+	userService  *users.UserService
 }
 
 func main() {
@@ -67,6 +69,7 @@ func main() {
 		err:          CustomError{logger: logger},
 		logger:       jsonlog.New(os.Stdout, jsonlog.LevelInfo),
 		movieService: movies.NewMovieService(db),
+		userService:  users.NewUserService(db),
 	}
 
 	err = app.serve()
