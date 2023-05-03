@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"movies-api/internal/models/users"
 	"movies-api/internal/utils"
 	"movies-api/internal/validator"
@@ -52,8 +53,25 @@ func (app *app) createUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": user}, nil)
+	app.wg.Add(1)
+	// background email sender
+	go func() {
+		defer app.wg.Done()
 
+		// recover to catch any panics
+		defer func() {
+			if err := recover(); err != nil {
+				app.logger.PrintError(fmt.Errorf("%s", err), nil)
+			}
+		}()
+
+		err = app.mailer.Send(user.Email, "user_welcome.tmpl.html", user)
+		if err != nil {
+			app.logger.PrintError(err, nil)
+		}
+	}()
+
+	err = utils.WriteJSON(w, http.StatusAccepted, utils.Envelope{"user": user}, nil)
 	if err != nil {
 		app.err.serverErrorResponse(w, r, err)
 	}

@@ -37,7 +37,18 @@ func (app *app) serve() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 
-		shutdownError <- server.Shutdown(ctx)
+		err := server.Shutdown(ctx)
+
+		if err != nil {
+			shutdownError <- err
+		}
+
+		app.logger.PrintInfo("completeing background tasks on %s", map[string]string{
+			"addr": server.Addr,
+		})
+
+		app.wg.Wait()
+		shutdownError <- nil
 	}()
 
 	app.logger.PrintInfo("starting server on %s", map[string]string{
