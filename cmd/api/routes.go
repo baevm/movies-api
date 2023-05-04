@@ -43,6 +43,7 @@ func (app *app) usersRouter() http.Handler {
 	r.Post("/", app.createUserHandler)
 	r.Get("/", app.getUserHandler)
 	r.Patch("/", app.updateUserHandler)
+	r.Put("/activated", app.activateUserHandler)
 
 	return r
 }

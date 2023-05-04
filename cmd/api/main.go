@@ -6,6 +6,7 @@ import (
 	"flag"
 	"movies-api/internal/jsonlog"
 	"movies-api/internal/mailer"
+	"movies-api/internal/models/acttokens"
 	"movies-api/internal/models/movies"
 	"movies-api/internal/models/users"
 	"os"
@@ -47,8 +48,9 @@ type app struct {
 	mailer mailer.Mailer
 	wg     sync.WaitGroup
 
-	movieService *movies.MovieService
-	userService  *users.UserService
+	movieService    *movies.MovieService
+	userService     *users.UserService
+	actTokenService *acttokens.ActTokenService
 }
 
 func main() {
@@ -85,12 +87,13 @@ func main() {
 	logger.PrintInfo("Connected to DB", nil)
 
 	app := &app{
-		config:       cfg,
-		err:          CustomError{logger: logger},
-		logger:       jsonlog.New(os.Stdout, jsonlog.LevelInfo),
-		mailer:       mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
-		movieService: movies.NewMovieService(db),
-		userService:  users.NewUserService(db),
+		config:          cfg,
+		err:             CustomError{logger: logger},
+		logger:          jsonlog.New(os.Stdout, jsonlog.LevelInfo),
+		mailer:          mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
+		movieService:    movies.NewMovieService(db),
+		userService:     users.NewUserService(db),
+		actTokenService: acttokens.NewActTokenService(db),
 	}
 
 	err = app.serve()

@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"movies-api/internal/models"
@@ -122,4 +123,45 @@ func (u UserService) Update(user *User) error {
 	}
 
 	return nil
+}
+
+func (u UserService) GetForToken(scope, tokenPlainttext string) (*User, error) {
+	hashToken := sha256.Sum256([]byte(tokenPlainttext))
+
+	var user User
+
+	query := `
+	SELECT users.id, users.name, users.email, users.password_hash, users.activated, users.created_at, users.version
+	FROM users
+	INNER JOIN tokens
+	ON users.id = tokens.user_id
+	WHERE tokens.hash = $1 
+	AND tokens.scope = $2 
+	AND tokens.expiry > $3`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []any{hashToken[:], scope, time.Now()}
+
+	err := u.db.QueryRowContext(ctx, query, args...).Scan(
+		&user.Id,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.Created_at,
+		&user.Version,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, models.ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
 }
