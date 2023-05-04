@@ -60,6 +60,18 @@ func (e *CustomError) editConflictResponse(w http.ResponseWriter, r *http.Reques
 }
 
 func (e *CustomError) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
-	msg := "Too many requests. Please try again in a moment."
+	msg := "Too many requests. Please try again in a moment"
 	e.errorResponse(w, r, http.StatusTooManyRequests, msg)
+}
+
+func (e *CustomError) invalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "invalid credentials"
+	e.errorResponse(w, r, http.StatusForbidden, msg)
+}
+
+func (e *CustomError) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("WWW-Authenticate", "Bearer")
+	
+	msg := "invalid authentication token"
+	e.errorResponse(w, r, http.StatusForbidden, msg)
 }

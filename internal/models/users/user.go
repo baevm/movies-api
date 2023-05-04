@@ -25,6 +25,7 @@ type UserService struct {
 
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
+	AnonUser          = &User{}
 )
 
 func NewUserService(db *sql.DB) *UserService {
@@ -72,7 +73,7 @@ func (u UserService) GetByEmail(email string) (*User, error) {
 	defer cancel()
 
 	err := u.db.
-		QueryRowContext(ctx, query, user.Email).
+		QueryRowContext(ctx, query, email).
 		Scan(
 			&user.Id,
 			&user.Name,
@@ -125,7 +126,7 @@ func (u UserService) Update(user *User) error {
 	return nil
 }
 
-func (u UserService) GetForToken(scope, tokenPlainttext string) (*User, error) {
+func (u UserService) GetByToken(scope, tokenPlainttext string) (*User, error) {
 	hashToken := sha256.Sum256([]byte(tokenPlainttext))
 
 	var user User
@@ -164,4 +165,8 @@ func (u UserService) GetForToken(scope, tokenPlainttext string) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+func (u *User) isAnon() bool {
+	return u == AnonUser
 }

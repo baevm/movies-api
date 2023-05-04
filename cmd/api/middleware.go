@@ -1,9 +1,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"movies-api/internal/context"
+	"movies-api/internal/models"
+	"movies-api/internal/models/acttokens"
+	"movies-api/internal/models/users"
+	"movies-api/internal/validator"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -78,6 +85,58 @@ func (app *app) rateLimit(next http.Handler) http.Handler {
 
 		mu.Unlock()
 
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *app) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Authorization")
+
+		// get auth header from req
+		authHeader := r.Header.Get("Authorization")
+
+		// if auth header is empty set
+		// anon user in context and return
+		if authHeader == "" {
+			r = context.ContextSetUser(r, users.AnonUser)
+
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// split auth header in 2 parts
+		headerParts := strings.Split(authHeader, " ")
+
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			app.err.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		token := headerParts[1]
+
+		v := validator.New()
+
+		if acttokens.ValidateTokenPlaintext(v, token); !v.Valid() {
+			app.err.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// find user by his token
+		user, err := app.userService.GetByToken(acttokens.ScopeAuth, token)
+
+		if err != nil {
+			switch {
+			case errors.Is(err, models.ErrRecordNotFound):
+				app.err.invalidAuthenticationTokenResponse(w, r)
+			default:
+				app.err.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+
+		// set user in context
+		r = context.ContextSetUser(r, user)
 		next.ServeHTTP(w, r)
 	})
 }

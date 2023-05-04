@@ -119,7 +119,7 @@ func (app *app) activateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// find user by activation token
-	user, err := app.userService.GetForToken(acttokens.ScopeActivation, input.TokenPlaintext)
+	user, err := app.userService.GetByToken(acttokens.ScopeActivation, input.TokenPlaintext)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrRecordNotFound):
