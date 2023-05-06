@@ -11,6 +11,7 @@ import (
 	"movies-api/internal/models/permissions"
 	"movies-api/internal/models/users"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +40,9 @@ type config struct {
 		username string
 		password string
 		sender   string
+	}
+	cors struct {
+		trustedOrigins []string
 	}
 }
 
@@ -75,6 +79,11 @@ func main() {
 	flag.StringVar(&cfg.smtp.password, "smtp-pass", "932626d34748d6", "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Movies API <no-reply@moviesapi.net>", "SMTP sender")
 
+	flag.Func("cors-trusted-origins", "Trusted CORS origins", func(val string) error {
+		cfg.cors.trustedOrigins = strings.Fields(val)
+		return nil
+	})
+	
 	flag.Parse()
 
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
