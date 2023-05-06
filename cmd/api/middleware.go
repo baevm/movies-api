@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"expvar"
 	"fmt"
 	"movies-api/internal/context"
 	"movies-api/internal/models"
@@ -10,10 +11,12 @@ import (
 	"movies-api/internal/validator"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/felixge/httpsnoop"
 	"golang.org/x/time/rate"
 )
 
@@ -219,5 +222,23 @@ func (app *app) enableCORS(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *app) metrics(next http.Handler) http.Handler {
+	totalReqReceived := expvar.NewInt("total_requests_received")
+	totalResSent := expvar.NewInt("total_responses_sent")
+	totalProcessingTimeMs := expvar.NewInt("total_processing_time_ms")
+	totalResSentByStatus := expvar.NewMap("total_responses_sent_by_status")
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		totalReqReceived.Add(1)
+
+		metrics := httpsnoop.CaptureMetrics(next, w, r)
+
+		totalResSent.Add(1)
+
+		totalProcessingTimeMs.Add(metrics.Duration.Microseconds())
+		totalResSentByStatus.Add(strconv.Itoa(metrics.Code), 1)
 	})
 }

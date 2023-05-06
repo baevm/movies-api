@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"expvar"
 	"flag"
 	"movies-api/internal/jsonlog"
 	"movies-api/internal/mailer"
@@ -11,6 +12,7 @@ import (
 	"movies-api/internal/models/permissions"
 	"movies-api/internal/models/users"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -65,12 +67,12 @@ func main() {
 	flag.StringVar(&cfg.env, "env", "dev", "Your environment: dev|prod|stage")
 
 	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://greenlight:pa55word@localhost/movies-api?sslmode=disable", "PostgreSQL connect url")
-	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL maximum open connections")
-	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL maximum idle connections")
+	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 50, "PostgreSQL maximum open connections")
+	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 50, "PostgreSQL maximum idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL maximum connections idle time")
 
-	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter requests per second")
-	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter burst requests")
+	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 50, "Rate limiter requests per second")
+	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 1000, "Rate limiter burst requests")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enabled rate limiter")
 
 	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
@@ -83,7 +85,7 @@ func main() {
 		cfg.cors.trustedOrigins = strings.Fields(val)
 		return nil
 	})
-	
+
 	flag.Parse()
 
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
@@ -96,6 +98,18 @@ func main() {
 	defer db.Close()
 
 	logger.PrintInfo("Connected to DB", nil)
+
+	expvar.NewString("version").Set(version)
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
+	expvar.Publish("database", expvar.Func(func() any {
+		return db.Stats()
+	}))
+	expvar.Publish("timestamp", expvar.Func(func() any {
+		return time.Now().Unix()
+	}))
+
 
 	app := &app{
 		config:             cfg,
