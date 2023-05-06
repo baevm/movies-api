@@ -71,7 +71,22 @@ func (e *CustomError) invalidCredentialsResponse(w http.ResponseWriter, r *http.
 
 func (e *CustomError) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
-	
+
 	msg := "invalid authentication token"
 	e.errorResponse(w, r, http.StatusForbidden, msg)
+}
+
+func (e *CustomError) authenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
+	message := "you must be authenticated to access this resource"
+	e.errorResponse(w, r, http.StatusUnauthorized, message)
+}
+
+func (e *CustomError) inactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
+	message := "your user account must be activated to access this resource"
+	e.errorResponse(w, r, http.StatusForbidden, message)
+}
+
+func (e *CustomError) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
+	message := "your user account doesn't have the necessary permissions to access this resource"
+	e.errorResponse(w, r, http.StatusForbidden, message)
 }

@@ -167,6 +167,6 @@ func (u UserService) GetByToken(scope, tokenPlainttext string) (*User, error) {
 	return &user, nil
 }
 
-func (u *User) isAnon() bool {
+func (u *User) IsAnon() bool {
 	return u == AnonUser
 }

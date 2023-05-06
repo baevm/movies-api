@@ -65,7 +65,6 @@ func (m MovieService) Get(id int64) (*Movie, error) {
 	err := m.db.
 		QueryRowContext(ctx, query, id).
 		Scan(
-			&[]byte{},
 			&movie.Id,
 			&movie.CreatedAt,
 			&movie.Title,

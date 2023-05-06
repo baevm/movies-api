@@ -44,6 +44,7 @@ func (app *app) createUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// create user
 	err = app.userService.Create(user)
 	if err != nil {
 		switch {
@@ -56,15 +57,22 @@ func (app *app) createUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := app.actTokenService.New(user.Id, 3*24*time.Hour, acttokens.ScopeActivation)
-
+	// grand movies:read permission
+	err = app.permissionsService.AddForUser(user.Id, "movies:read")
 	if err != nil {
 		app.err.serverErrorResponse(w, r, err)
 		return
 	}
 
+	// create activation token
+	token, err := app.actTokenService.New(user.Id, 3*24*time.Hour, acttokens.ScopeActivation)
+	if err != nil {
+		app.err.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// send email in background
 	app.wg.Add(1)
-	// background email sender
 	go func() {
 		defer app.wg.Done()
 

@@ -140,3 +140,54 @@ func (app *app) authenticate(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func (app *app) requireAuthenticatedUser(next http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := context.ContextGetUser(r)
+
+		if user.IsAnon() {
+			app.err.authenticationRequiredResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *app) requireActivatedUser(next http.Handler) http.HandlerFunc {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := context.ContextGetUser(r)
+
+		if !user.Activated {
+			app.err.inactiveAccountResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requireAuthenticatedUser(fn)
+}
+
+func (app *app) requirePermission(code string, next http.HandlerFunc) http.HandlerFunc {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := context.ContextGetUser(r)
+
+		// get user permissions
+		permissions, err := app.permissionsService.GetAllForUser(user.Id)
+		if err != nil {
+			app.err.serverErrorResponse(w, r, err)
+			return
+		}
+
+		// check if req permission includes in user permissions
+		if !permissions.IsInclude(code) {
+			app.err.notPermittedResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requireActivatedUser(fn)
+}
