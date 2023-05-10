@@ -51,6 +51,7 @@ func (app *app) usersRouter() http.Handler {
 	r.Get("/", app.getUserHandler)
 	r.Patch("/", app.updateUserHandler)
 	r.Put("/activated", app.activateUserHandler)
+	r.Put("/password", app.updateUserPasswordHandler)
 
 	return r
 }
@@ -60,6 +61,7 @@ func (app *app) tokensRouter() http.Handler {
 	r := chi.NewRouter()
 
 	r.Post("/authentication", app.createAuthTokenHandler)
+	r.Post("/password-reset", app.createPasswordResetTokenHandler)
 
 	return r
 }

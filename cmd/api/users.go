@@ -165,3 +165,74 @@ func (app *app) activateUserHandler(w http.ResponseWriter, r *http.Request) {
 		app.err.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *app) updateUserPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Password string `json:"password"`
+		Token    string `json:"token"`
+	}
+
+	err := utils.ReadJSON(w, r, &input)
+
+	if err != nil {
+		app.err.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+
+	users.ValidatePasswordPlaintext(v, input.Password)
+	acttokens.ValidateTokenPlaintext(v, input.Token)
+
+	if !v.Valid() {
+		app.err.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// find user by his token
+	user, err := app.userService.GetByToken(acttokens.ScopePasswordReset, input.Token)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			v.AddError("token", "invalid or expired password reset token")
+			app.err.failedValidationResponse(w, r, v.Errors)
+		default:
+			app.err.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	// create new hashed password
+	err = user.Password.Set(input.Password)
+	if err != nil {
+		app.err.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// update user with new password
+	err = app.userService.Update(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrEditConflict):
+			app.err.editConflictResponse(w, r)
+		default:
+			app.err.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	// delete all password reset tokens
+	err = app.actTokenService.DeleteAllForUser(acttokens.ScopePasswordReset, user.Id)
+	if err != nil {
+		app.err.serverErrorResponse(w, r, err)
+		return
+	}
+
+	env := utils.Envelope{"message": "your password was successfully reset"}
+	err = utils.WriteJSON(w, http.StatusOK, env, nil)
+	if err != nil {
+		app.err.serverErrorResponse(w, r, err)
+		return
+	}
+}
