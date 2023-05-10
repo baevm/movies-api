@@ -62,6 +62,7 @@ func (app *app) tokensRouter() http.Handler {
 
 	r.Post("/authentication", app.createAuthTokenHandler)
 	r.Post("/password-reset", app.createPasswordResetTokenHandler)
+	r.Post("/activation", app.createActivationTokenHandler)
 
 	return r
 }

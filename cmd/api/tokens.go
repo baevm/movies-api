@@ -74,7 +74,7 @@ func (app *app) createAuthTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 func (app *app) createPasswordResetTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Email string `json:"email,omitempty"`
+		Email string `json:"email"`
 	}
 
 	err := utils.ReadJSON(w, r, &input)
@@ -140,6 +140,81 @@ func (app *app) createPasswordResetTokenHandler(w http.ResponseWriter, r *http.R
 	}()
 
 	env := utils.Envelope{"message": "an email will be sent to you containing password reset instructions"}
+
+	err = utils.WriteJSON(w, http.StatusAccepted, env, nil)
+
+	if err != nil {
+		app.err.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *app) createActivationTokenHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Email string `json:"email"`
+	}
+
+	err := utils.ReadJSON(w, r, &input)
+
+	if err != nil {
+		app.err.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+
+	if users.ValidateEmail(v, input.Email); !v.Valid() {
+		app.err.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	user, err := app.userService.GetByEmail(input.Email)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrRecordNotFound):
+			v.AddError("email", "no matching email address found")
+			app.err.failedValidationResponse(w, r, v.Errors)
+		default:
+			app.err.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	if user.Activated {
+		v.AddError("email", "user has been already activated")
+		app.err.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	token, err := app.actTokenService.New(user.Id, 3*24*time.Hour, acttokens.ScopeActivation)
+
+	if err != nil {
+		app.err.serverErrorResponse(w, r, err)
+		return
+	}
+
+	app.wg.Add(1)
+	go func() {
+		defer app.wg.Done()
+
+		// recover to catch any panics
+		defer func() {
+			if err := recover(); err != nil {
+				app.logger.PrintError(fmt.Errorf("%s", err), nil)
+			}
+		}()
+
+		data := map[string]any{
+			"activationToken": token.Plaintext,
+		}
+
+		err = app.mailer.Send(user.Email, "token_activation.tmpl.html", data)
+		if err != nil {
+			app.logger.PrintError(err, nil)
+		}
+	}()
+
+	env := utils.Envelope{"message": "an email will be sent to you containing activation instructions"}
 
 	err = utils.WriteJSON(w, http.StatusAccepted, env, nil)
 
