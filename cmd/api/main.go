@@ -66,7 +66,7 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 5000, "Your server port")
 	flag.StringVar(&cfg.env, "env", "dev", "Your environment: dev|prod|stage")
 
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://greenlight:pa55word@localhost/movies-api?sslmode=disable", "PostgreSQL connect url")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL connect url")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 50, "PostgreSQL maximum open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 50, "PostgreSQL maximum idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL maximum connections idle time")
@@ -109,7 +109,6 @@ func main() {
 	expvar.Publish("timestamp", expvar.Func(func() any {
 		return time.Now().Unix()
 	}))
-
 
 	app := &app{
 		config:             cfg,

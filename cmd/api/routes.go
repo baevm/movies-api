@@ -64,6 +64,7 @@ func (app *app) tokensRouter() http.Handler {
 	return r
 }
 
+// /metrics
 func (app *app) metricsRouter() http.Handler {
 	r := chi.NewRouter()
 

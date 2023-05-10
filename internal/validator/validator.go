@@ -31,7 +31,7 @@ func (v *Validator) Check(ok bool, key, msg string) {
 }
 
 func AllowedValues[T comparable](value T, permittedValues ...T) bool {
-	for i, _ := range permittedValues {
+	for i := range permittedValues {
 		if value == permittedValues[i] {
 			return true
 		}

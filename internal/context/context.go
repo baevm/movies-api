@@ -17,7 +17,7 @@ func ContextSetUser(r *http.Request, user *users.User) *http.Request {
 
 func ContextGetUser(r *http.Request) *users.User {
 	user, ok := r.Context().Value(userContextKey).(*users.User)
-	
+
 	if !ok {
 		panic("missing user value in context")
 	}

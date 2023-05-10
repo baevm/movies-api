@@ -53,7 +53,7 @@ func calcMetadata(totalRecords, page, pageSize int) Metadata {
 	if totalRecords == 0 {
 		return Metadata{}
 	}
-	
+
 	return Metadata{
 		CurrentPage:  page,
 		PageSize:     pageSize,
