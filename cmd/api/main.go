@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"movies-api/internal/jsonlog"
 	"movies-api/internal/mailer"
 	"movies-api/internal/models/acttokens"
@@ -66,7 +67,7 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 5000, "Your server port")
 	flag.StringVar(&cfg.env, "env", "dev", "Your environment: dev|prod|stage")
 
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL connect url")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://greenlight:pa55word@localhost/movies-api?sslmode=disable", "PostgreSQL connect url")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 50, "PostgreSQL maximum open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 50, "PostgreSQL maximum idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL maximum connections idle time")
@@ -86,7 +87,14 @@ func main() {
 		return nil
 	})
 
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("Version: \t%s\n", version)
+		os.Exit(0)
+	}
 
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 	db, err := openDB(cfg)

@@ -33,3 +33,19 @@ audit:
 	staticcheck ./...
 	@echo 'Running tests...'
 	go test -race -vet=off ./...
+
+## vendor: tidy and vendor dependencies
+.PHONY: vendor
+vendor:
+	@echo 'Tidying and verifying module dependencies...'
+	go mod tidy
+	go mod verify
+	@echo 'Vendoring dependencies...'
+	go mod vendor
+
+## build/api: build app binary
+.PHONY: build/api
+build/api:
+	@echo 'Building cmd/api...'
+	GOOS=windows GOARCH=amd64 go build -ldflags='-s' -o=./bin ./cmd/api
+	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin ./cmd/api
